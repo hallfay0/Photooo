@@ -15,17 +15,14 @@ def perform_operation():
     move_images_only = move_images_only_var.get()
     keep_structure = keep_structure_var.get()
 
-    # 验证路径是否存在
     if not os.path.exists(source_folder) or not os.path.exists(destination_folder):
         messagebox.showerror("错误", "请选择有效的源文件夹和目标文件夹")
         return
 
-    # 提示确认操作
     confirmation = messagebox.askokcancel("确认操作", f"确定要{operation}文件吗？")
     if not confirmation:
         return
 
-    # 获取文件列表
     file_list = []
     for root, dirs, files in os.walk(source_folder):
         for file in files:
@@ -38,19 +35,15 @@ def perform_operation():
             if not move_images_only or (move_images_only and is_image_file(source_file)):
                 file_list.append((source_file, destination_file))
 
-    # 创建并启动线程执行操作，以避免界面冻结
-    operation_thread = Thread(target=move_or_copy, args=(file_list, operation))
+    operation_thread = Thread(target=move_or_copy, args=(file_list, operation, source_folder, destination_folder))
     operation_thread.start()
 
-# 函数：中断操作
-def interrupt_operation():
-    operation_thread.stop()
-
 # 函数：移动或复制文件
-def move_or_copy(file_list, operation):
+def move_or_copy(file_list, operation, source_folder, destination_folder):
     total_files = len(file_list)
     progress_bar["maximum"] = total_files
     success_count = 0
+    failed_files = []
 
     for source_file, destination_file in file_list:
         os.makedirs(os.path.dirname(destination_file), exist_ok=True)
@@ -60,31 +53,47 @@ def move_or_copy(file_list, operation):
             elif operation == "复制":
                 shutil.copy2(source_file, destination_file)
             success_count += 1
+        except Exception as e:
+            failed_files.append((source_file, destination_file))
+            print(f"操作失败：{str(e)}")
+        finally:
             progress_bar["value"] = success_count
             root.update_idletasks()
-        except Exception as e:
-            print(f"操作失败：{str(e)}")
+
+    if failed_files:
+        handle_failed_operations(failed_files, operation)
 
     messagebox.showinfo("成功", f"所有文件已成功{operation}到目标文件夹。")
 
-# 函数：检查是否为图片文件
+# 函数：处理失败的文件操作
+def handle_failed_operations(failed_files, operation):
+    verify_dir = os.path.join(destination_folder.get(), "校验文件夹")
+    os.makedirs(verify_dir, exist_ok=True)
+
+    for source_file, destination_file in failed_files:
+        rel_path = os.path.relpath(destination_file, destination_folder.get())
+        verify_file_path = os.path.join(verify_dir, rel_path)
+        os.makedirs(os.path.dirname(verify_file_path), exist_ok=True)
+        try:
+            if operation == "移动":
+                shutil.move(source_file, verify_file_path)
+            elif operation == "复制":
+                shutil.copy2(source_file, verify_file_path)
+            print(f"校验操作：文件 {source_file} 已被{operation}到 {verify_file_path}")
+        except Exception as e:
+            print(f"校验操作失败：{str(e)}")
+
+# 函数：判断是否为图片文件
 def is_image_file(file_path):
-    image_extensions = [".jpg", ".jpeg", ".png", "webp", ".gif", ".bmp"]
+    image_extensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"]
     file_extension = os.path.splitext(file_path)[1].lower()
     return file_extension in image_extensions
 
-# 函数：清除源文件夹路径
-def clear_source_folder():
-    source_entry.delete(0, tk.END)
-
-# 函数：清除目标文件夹路径
-def clear_destination_folder():
-    destination_entry.delete(0, tk.END)
-
-# 创建主窗口
+# 设置GUI界面
 root = tk.Tk()
 root.title("Photooo")
 root.geometry("520x590")
+
 
 # 设置页面边距
 root.grid_rowconfigure(0, weight=1)
