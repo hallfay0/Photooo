@@ -1,12 +1,9 @@
-name: Build EXE
+name: Build and Release EXE
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    tags:
+      - 'v*.*.*'  # 仅在推送标签时触发工作流
 
 jobs:
   build:
@@ -30,8 +27,23 @@ jobs:
         run: |
           pyinstaller --onefile --noconsole photooo.py  # 替换为您的脚本名
 
-      - name: Upload EXE
-        uses: actions/upload-artifact@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Photooo-exe
-          path: dist/POO.exe  # 替换为生成的exe文件名
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/photooo.exe  # 替换为生成的exe文件名
+          asset_name: photooo.exe  # 替换为生成的exe文件名
+          asset_content_type: application/octet-stream
