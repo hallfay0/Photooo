@@ -28,7 +28,7 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --noconsole your_script.py  # 替换为您的脚本名
+          pyinstaller --onefile --noconsole photooo.py  # 替换为您的脚本名
 
       - name: Upload EXE
         uses: actions/upload-artifact@v2
